@@ -19,7 +19,8 @@ def load_cifar10(dir='./datasets/cifar-10-batches-py'):
     '''
     load cifar 10 into a train and test dict consisting of {label:[examples]}.
 
-    download cifar 10 from https://www.cs.toronto.edu/~kriz/cifar.html and unzip it into datasets folder.
+    download cifar 10 from https://www.cs.toronto.edu/~kriz/cifar.html
+    and unzip it into datasets folder.
     '''
     train = {i: [] for i in range(10)}
     file_names = ['data_batch_1', 'data_batch_2', 'data_batch_3', 'data_batch_4', 'data_batch_5']
@@ -40,16 +41,18 @@ def load_cifar10(dir='./datasets/cifar-10-batches-py'):
 class TripletDataset(Dataset):
     '''
     Custom dataset for producing (anchor, positive, negative) triplets.
-    Stores all of the examples by class, allows the retrieval of all possible
+
     Stores all of the examples by class, allows the retrieval of all possible
     triplets using one index.
+
+    Initialize with a dicitonary {label:[examples]}.
 
     '''
 
     def __init__(self, class_dic):
         '''
-        class_dic is a dictionary containing {class:[examples]}, where each class
-        has an equal number of exmaples.
+        class_dic is a dictionary containing {class:[examples]}, where each
+        class has an equal number of exmaples.
         '''
         class_size = len(next(iter(class_dic.values())))
         n_classes = len(class_dic)
@@ -73,7 +76,7 @@ class TripletDataset(Dataset):
 
         negative_class = idx % (self.n_classes - 1)
         # negative class can't be same as anchor class
-        if negative_class <= anchor_class:
+        if negative_class >= anchor_class:
             negative_class += 1
 
         idx = int(idx/(self.n_classes - 1))
