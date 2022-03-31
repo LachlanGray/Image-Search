@@ -3,9 +3,10 @@ Functions relevant to loading/processing the dataset
 
 '''
 
-import pickle
+import torch
+from torch.utils.data import Dataset, Sampler
 
-from torch.utils.data import Dataset
+import pickle
 
 
 def unpickle(file):
@@ -66,20 +67,20 @@ class TripletDataset(Dataset):
 
     def __getitem__(self, idx):
         anchor_class = idx % self.n_classes
-        idx = int(idx/self.n_classes)
+        idx = int(idx / self.n_classes)
 
         a = idx % self.class_size
-        idx = int(idx/self.class_size)
+        idx = int(idx / self.class_size)
 
         p = idx % self.class_size
-        idx = int(idx/self.class_size)
+        idx = int(idx / self.class_size)
 
         negative_class = idx % (self.n_classes - 1)
         # negative class can't be same as anchor class
         if negative_class >= anchor_class:
             negative_class += 1
 
-        idx = int(idx/(self.n_classes - 1))
+        idx = int(idx / (self.n_classes - 1))
 
         n = idx % self.class_size
 
@@ -87,3 +88,23 @@ class TripletDataset(Dataset):
 
     def __len__(self):
         return self.n_classes * (self.n_classes - 1) * self.class_size**3
+
+
+class RandomSubsetSampler(Sampler):
+    """
+    Yields sample_size random indices between 0 and dataset_size.
+
+    Useful when there are way too many indeces to iterate over in one epoch.
+    """
+
+    def __init__(self, dataset_size, sample_size):
+        self.sample_size = sample_size
+        self.dataset_size = dataset_size
+
+    def __iter__(self):
+        indices = torch.randint(0, self.dataset_size, (self.sample_size, ))
+        for i in torch.randperm(self.sample_size):
+            yield indices[i]
+
+    def __len__(self):
+        return self.sample_size
