@@ -21,7 +21,7 @@ class ImageDatabase (object):
         self.db = self.encode_images()
 
     def encode_image(self, img):
-        n = len(image.shape)
+        n = len(img.shape)
         img = torch.FloatTensor(img / 255).to(device)
 
         if n == 3:
