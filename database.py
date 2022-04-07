@@ -3,6 +3,9 @@ import torch.nn.functional as F
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+def default_similarity(x1,x2):
+    return F.cosine_similarity(x1, x2, dim=0)
+
 class ImageDatabase (object):
     '''
        Database containing images indexed by latent vector.
@@ -18,10 +21,14 @@ class ImageDatabase (object):
         self.db = self.encode_images()
 
     def encode_image(self, img):
+        n = len(image.shape)
         img = torch.FloatTensor(img / 255).to(device)
-        # img = torch.from_numpy(img / 255).to(device)
-        img = img.unsqueeze(0)
-        # raise Exception('{}'.format(img))
+
+        if n == 3:
+            img = img.unsqueeze(0)
+        elif n == 4:
+            raise Exception('Invalid image')
+
         enc = self.encoder.forward(img)
         return enc.squeeze()
 
@@ -34,14 +41,26 @@ class ImageDatabase (object):
 
         return db
 
-    def search(self, img, k, similarity=F.cosine_similarity):
+    def search(self, img, k, similarity=default_similarity, threshold=1.0):
         '''
             Search for k similar images according to user-provided similarity
             measure.
 
             img - input image
         '''
-        pass
+        results = []
+        n = 0
+        enc = self.encode_image(img)
+
+        for db_img in self.db:
+            if n == k:
+                return results
+            enc_other = self.encode_image(db_img)
+            if similarity(enc, enc_other) <= threshold:
+                results.append(db_img)
+                n += 1
+
+        return results
 
 if __name__ == '__main__':
     from base_model import ImageEncoder
