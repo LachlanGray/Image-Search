@@ -50,7 +50,7 @@ class TripletDataset(Dataset):
 
     '''
 
-    def __init__(self, class_dic):
+    def __init__(self, class_dic, device=None):
         '''
         class_dic is a dictionary containing {class:[examples]}, where each
         class has an equal number of exmaples.
@@ -63,7 +63,14 @@ class TripletDataset(Dataset):
         self.class_size = class_size
         self.n_classes = n_classes
         self.num_triplets = class_size**2 * (n_classes - 1) * class_size * n_classes
-        self.examples = [x for x in class_dic.values()]
+
+        # examples = [x for x in class_dic.values()]
+        self.examples = [[] for _ in range(n_classes)]
+        for i, X in enumerate(class_dic.values()):
+            for x in X:
+                self.examples[i].append((torch.from_numpy(x) / 255).to(device))
+
+        # self.examples = [torch.from_numpy(x).to(device) for x in class_dic.values()]
 
     def __getitem__(self, idx):
         anchor_class = idx % self.n_classes
