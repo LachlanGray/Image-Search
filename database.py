@@ -13,9 +13,11 @@ class ImageDatabase (Object):
         self.dataset = dataset
         self.encoder = encoder
 
-    def search(self, k, similarity=F.cosine_similarity):
+    def search(self, img, k, similarity=F.cosine_similarity):
         '''
             Search for k similar images according to user-provided similarity
             measure.
+
+            img - input image
         '''
         pass
