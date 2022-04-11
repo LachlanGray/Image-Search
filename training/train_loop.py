@@ -3,14 +3,29 @@ Main training loop
 
 '''
 import torch
+import os
+import logging
 from torch.utils.data import DataLoader
 
-from dataset import load_cifar10, TripletDataset, RandomSubsetSampler
-from base_model import ImageEncoder
+from imagesearch import LoggingHandler
+from imagesearch.datasets import download_cifar10, load_cifar10, TripletDataset, RandomSubsetSampler
+from imagesearch.models import ImageEncoder
 
+#### Just some code to print debug information to stdout
+logging.basicConfig(format='%(asctime)s - %(message)s',
+                    datefmt='%Y-%m-%d %H:%M:%S',
+                    level=logging.INFO,
+                    handlers=[LoggingHandler()])
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+logging.info("Device used: {}".format(device))
 
+#### Download CIFAR10 dataset ####
+dataset_dir = "./datasets/cifar-10-batches-py"
+if not os.path.isdir(dataset_dir):
+    download_cifar10()
+
+#### Load CIFAR10 dataset ####
 train_dic, test_dic = load_cifar10()
 
 train_ds = TripletDataset(train_dic, device=device)
