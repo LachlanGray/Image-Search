@@ -5,15 +5,65 @@ Functions relevant to loading/processing the dataset
 
 import torch
 from torch.utils.data import Dataset, Sampler
+from tqdm.autonotebook import tqdm
 
 import pickle
+import requests
+import tarfile
+import os
+import logging
 
+logger = logging.getLogger(__name__)
 
 def unpickle(file):
     with open(file, 'rb') as f:
         dic = pickle.load(f, encoding='latin1')
 
     return dic
+
+def download_url(url: str, save_path: str, chunk_size: int = 1024):
+    """Download url with progress bar using tqdm
+    https://stackoverflow.com/questions/15644964/python-progress-bar-and-downloads
+    Args:
+        url (str): downloadable url
+        save_path (str): local path to save the downloaded file
+        chunk_size (int, optional): chunking of files. Defaults to 1024.
+    """
+    r = requests.get(url, stream=True, verify=False)
+    total = int(r.headers.get('Content-Length', 0))
+    with open(save_path, 'wb') as fd, tqdm(
+        desc=save_path,
+        total=total,
+        unit='iB',
+        unit_scale=True,    
+        unit_divisor=chunk_size,
+    ) as bar:
+        for data in r.iter_content(chunk_size=chunk_size):
+            size = fd.write(data)
+            bar.update(size)
+
+def unzip(zip_file: str, out_dir: str):
+    tar = tarfile.open(zip_file, "r:gz")
+    tar.extractall(path=out_dir)
+    tar.close()
+
+
+def download_cifar10(dir='./datasets', chunk_size=1024):
+    '''
+    load cifar 10 into a train and test dict consisting of {label:[examples]}.
+
+    download cifar 10 from https://www.cs.toronto.edu/~kriz/cifar.html
+    and unzip it into datasets folder.
+    '''
+    os.makedirs(dir, exist_ok=True)
+    url = "https://www.cs.toronto.edu/~kriz/cifar-10-python.tar.gz"
+    zip_path = os.path.join(dir, url.split("/")[-1])
+
+    logger.info("Downloading {}...".format(url))
+    download_url(url=url, save_path=zip_path, chunk_size=1024)
+
+    logger.info("Unzipping {}...".format(zip_path))
+    unzip(zip_file=zip_path, out_dir=dir)
 
 
 def load_cifar10(dir='./datasets/cifar-10-batches-py'):

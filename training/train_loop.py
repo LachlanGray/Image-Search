@@ -10,8 +10,7 @@ from torch.utils.data import DataLoader
 import sys
 
 from imagesearch import LoggingHandler
-# from imagesearch.dataset import download_cifar10, load_cifar10, TripletDataset, RandomSubsetSampler
-from imagesearch.dataset import load_cifar10, TripletDataset, RandomSubsetSampler
+from imagesearch.dataset import download_cifar10, load_cifar10, TripletDataset, RandomSubsetSampler
 from imagesearch.models import ImageEncoder
 
 if __name__ == '__main__':
@@ -31,8 +30,8 @@ if __name__ == '__main__':
 
     #### Download CIFAR10 dataset ####
     dataset_dir = "./datasets/cifar-10-batches-py"
-    # if not os.path.isdir(dataset_dir):
-    #     download_cifar10()
+    if not os.path.isdir(dataset_dir):
+        download_cifar10()
 
     #### Load CIFAR10 dataset ####
     train_dic, test_dic = load_cifar10()
