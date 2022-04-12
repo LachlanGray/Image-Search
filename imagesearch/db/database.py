@@ -63,7 +63,7 @@ class ImageDatabase (object):
         return results
 
 if __name__ == '__main__':
-    from base_model import ImageEncoder
+    from imagesearch.models import ImageEncoder
     from dataset import load_cifar10
 
     train, test = load_cifar10()
