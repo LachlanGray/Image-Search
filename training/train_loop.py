@@ -2,55 +2,64 @@
 Main training loop
 
 '''
+import argparse
 import torch
 import os
 import logging
 from torch.utils.data import DataLoader
+import sys
 
 from imagesearch import LoggingHandler
-from imagesearch.datasets import download_cifar10, load_cifar10, TripletDataset, RandomSubsetSampler
+# from imagesearch.dataset import download_cifar10, load_cifar10, TripletDataset, RandomSubsetSampler
+from imagesearch.dataset import load_cifar10, TripletDataset, RandomSubsetSampler
 from imagesearch.models import ImageEncoder
 
-#### Just some code to print debug information to stdout
-logging.basicConfig(format='%(asctime)s - %(message)s',
-                    datefmt='%Y-%m-%d %H:%M:%S',
-                    level=logging.INFO,
-                    handlers=[LoggingHandler()])
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--samples', dest='samples', type=int, default=50000)
+    parser.add_argument('--epochs', dest='epochs', type=int, default=20)
+    args = vars(parser.parse_args(sys.argv))
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-logging.info("Device used: {}".format(device))
+    #### Just some code to print debug information to stdout
+    logging.basicConfig(format='%(asctime)s - %(message)s',
+                        datefmt='%Y-%m-%d %H:%M:%S',
+                        level=logging.INFO,
+                        handlers=[LoggingHandler()])
 
-#### Download CIFAR10 dataset ####
-dataset_dir = "./datasets/cifar-10-batches-py"
-if not os.path.isdir(dataset_dir):
-    download_cifar10()
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    logging.info("Device used: {}".format(device))
 
-#### Load CIFAR10 dataset ####
-train_dic, test_dic = load_cifar10()
+    #### Download CIFAR10 dataset ####
+    dataset_dir = "./datasets/cifar-10-batches-py"
+    # if not os.path.isdir(dataset_dir):
+    #     download_cifar10()
 
-train_ds = TripletDataset(train_dic, device=device)
-test_ds = TripletDataset(test_dic, device=device)
+    #### Load CIFAR10 dataset ####
+    train_dic, test_dic = load_cifar10()
 
-n_samples = 50000
-n_epochs = 20  # total number of epochs
+    train_ds = TripletDataset(train_dic, device=device)
+    test_ds = TripletDataset(test_dic, device=device)
 
-train_loader = DataLoader(
-    train_ds,
-    batch_size=64,
-    sampler=RandomSubsetSampler(len(train_ds), n_samples)
-)
-train_loader
+    n_samples = args['samples']
+    n_epochs = args['epochs']  # total number of epochs
 
-net = ImageEncoder()
-net.to(device)
+    train_loader = DataLoader(
+        train_ds,
+        batch_size=64,
+        sampler=RandomSubsetSampler(len(train_ds), n_samples)
+    )
+    train_loader
 
-optimizer = torch.optim.Adam(net.parameters())
+    net = ImageEncoder()
+    net.to(device)
 
-loss_fn = torch.nn.TripletMarginLoss()
+    optimizer = torch.optim.Adam(net.parameters())
+    loss_fn = torch.nn.TripletMarginLoss()
 
-
-def train_one_epoch():
     for epoch in range(n_epochs):
+        total_loss = 0
+        n_batches = 0
+
         for i, data in enumerate(train_loader):
             a, p, n = data
 
@@ -64,9 +73,10 @@ def train_one_epoch():
             loss.backward()
 
             optimizer.step()
+            total_loss += loss
+            n_batches += 1
+        
+        logging.info("epoch: {} loss: {:.2f}".format(epoch, total_loss/n_batches))
 
-            # if i % 100 == 99:
-            print(f'epoch {i}: {loss}')
 
-
-train_one_epoch()
+    # train_one_epoch()
