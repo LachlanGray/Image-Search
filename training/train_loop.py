@@ -18,7 +18,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--samples', dest='samples', type=int, default=50000)
     parser.add_argument('--epochs', dest='epochs', type=int, default=20)
-    args = vars(parser.parse_args(sys.argv))
+    args = vars(parser.parse_args(sys.argv[1:]))
 
     #### Just some code to print debug information to stdout
     logging.basicConfig(format='%(asctime)s - %(message)s',
@@ -76,7 +76,7 @@ if __name__ == '__main__':
             total_loss += loss
             n_batches += 1
         
-        logging.info("epoch: {} loss: {:.2f}".format(epoch, total_loss/n_batches))
+        logging.info("epoch: {} loss: {:.2f}".format(epoch+1, total_loss/n_batches))
 
 
     # train_one_epoch()
