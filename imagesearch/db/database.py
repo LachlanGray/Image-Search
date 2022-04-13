@@ -85,11 +85,9 @@ if __name__ == '__main__':
                         datefmt='%Y-%m-%d %H:%M:%S',
                         level=logging.INFO,
                         handlers=[LoggingHandler()])
-    
-    device = get_device()
-    logging.info("Device used: {}".format(device))
 
     parser = argparse.ArgumentParser()
+    parser.add_argument("--device", dest="device", type=str, default='cpu')
     parser.add_argument("--model", dest="model_path", type=str)
     parser.add_argument("--label", dest="label", type=int, default=0)
     parser.add_argument("--index", dest="index", type=int, default=0)
@@ -102,6 +100,9 @@ if __name__ == '__main__':
     k = args['k']
     min_sim = args['min_sim']
     max_sim = args['max_sim']
+
+    device = torch.device(args['device'])
+    logging.info("Device used: {}".format(device))
 
     train, test = load_cifar10()
     if model_path:
