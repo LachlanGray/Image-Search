@@ -55,23 +55,40 @@ class ImageDatabase (object):
     def __len__(self):
         return len(self.db)
 
-    def search(self, img, k=0, min_sim=-1.0, max_sim=1.0):
+    def search_by_score(self, img, k=0):
         '''
-            Search for k similar images according to cosine similarity.
+            Search for k similar images by score.
+            Images are scored by their cosine similarity to the search image.
+            For images with score 1.0 (vector in the same direction as the search image),
+            we add the reciprocal of the Euclidean distance.
 
             img - input image
         '''
         results = []
-        n = 0
         enc = self.encode_image(img).to(self.device)
 
         for db_enc, db_img, label in self.db:
-            sim = F.cosine_similarity(enc, db_enc, dim=0)
-            if sim >= min_sim and sim <= max_sim:
-                results.append((db_img, label, sim))
+            sim = F.cosine_similarity(enc, db_enc, dim=0).item()
+            if round(sim) == 1:
+                sim += 1/max(1e-8, torch.norm(db_enc-enc).item())
+            results.append((db_img, label, sim))
 
         results.sort(reverse=True, key=lambda x: x[2])
-        if len(results) > k:
+        if k > 0 and len(results) > k:
+            results = results[:k]
+
+        return results
+
+    def search_by_distance(self, img, k=0):
+        results = []
+        enc = self.encode_image(img).to(self.device)
+
+        for db_enc, db_img, label in self.db:
+            dist = torch.norm(db_enc-enc).item()
+            results.append((db_img, label, dist))
+
+        results.sort(key=lambda x: x[2])
+        if k > 0 and len(results) > k:
             results = results[:k]
 
         return results
@@ -89,17 +106,15 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--device", dest="device", type=str, default='cpu')
     parser.add_argument("--model", dest="model_path", type=str)
+    parser.add_argument("--distance", dest="search_by_distance", action='store_true')
+    parser.add_argument("--score", dest="search_by_score", action='store_true')
     parser.add_argument("--label", dest="label", type=int, default=0)
     parser.add_argument("--index", dest="index", type=int, default=0)
     parser.add_argument("--k", dest="k", type=int, default=5)
-    parser.add_argument("--min-sim", dest="min_sim", type=float, default=-1.0)
-    parser.add_argument("--max-sim", dest="max_sim", type=float, default=1.0)
     parser.add_argument("--output", dest="output", type=str, default="search-results.png")
     args = vars(parser.parse_args(sys.argv[1:]))
     model_path = args['model_path']
     k = args['k']
-    min_sim = args['min_sim']
-    max_sim = args['max_sim']
 
     device = torch.device(args['device'])
     logging.info("Device used: {}".format(device))
@@ -118,7 +133,10 @@ if __name__ == '__main__':
 
     logging.info("searching for k={} similar images to image (label={}, index={}) in test".format(k, CIFAR_LABELS[args['label']], args['index']))
     search_img = test[args['label']][args['index']]
-    search_results = db.search(search_img, k, min_sim=min_sim, max_sim=max_sim)
+    if args['search_by_score']:
+        search_results = db.search_by_score(search_img, k)
+    else:
+        search_results = db.search_by_distance(search_img, k)
     logging.info("search returned {} results".format(len(search_results)))
 
     import matplotlib.pyplot as plt
@@ -131,8 +149,11 @@ if __name__ == '__main__':
         plt.title("{}".format(CIFAR_LABELS[args['label']]))
         for i in range(k):
             plt.subplot(1, k+1, i+2)
-            result_img, label, sim = search_results[i]
+            result_img, label, d = search_results[i]
             plt.imshow(result_img.reshape(32, 32, 3))
-            plt.title("{}\nsim={:.2f}".format(CIFAR_LABELS[label], sim))
+            if args['search_by_score']:
+                plt.title("{}\nscore={:.2f}".format(CIFAR_LABELS[label], d))
+            else:
+                plt.title("{}\ndist={:.2f}".format(CIFAR_LABELS[label], d))
         plt.tight_layout()
         plt.savefig(args['output'])

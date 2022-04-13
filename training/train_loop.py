@@ -87,6 +87,8 @@ def train(train_ds, test_ds, n_samples, n_epochs, model_path=None):
                     "model": net.state_dict()
                 }, model_path)
             best_loss = test_loss
+    
+    return net
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
