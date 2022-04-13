@@ -48,31 +48,31 @@ class ImageDatabase (object):
 
         for label in self.dataset:
             for img in self.dataset[label]:
-                db.append((self.encode_image(img), img, label))
+                db.append((self.encode_image(img).to(self.device), img, label))
 
         return db
 
     def __len__(self):
         return len(self.db)
 
-    def search(self, img, k=0, similarity=default_similarity, min_sim=-1.0, max_sim=1.0):
+    def search(self, img, k=0, min_sim=-1.0, max_sim=1.0):
         '''
-            Search for k similar images according to user-provided similarity
-            measure.
+            Search for k similar images according to cosine similarity.
 
             img - input image
         '''
         results = []
         n = 0
-        enc = self.encode_image(img)
+        enc = self.encode_image(img).to(self.device)
 
         for db_enc, db_img, label in self.db:
-            if k > 0 and n == k:
-                return results
-            sim = similarity(enc, db_enc)
+            sim = F.cosine_similarity(enc, db_enc, dim=0)
             if sim >= min_sim and sim <= max_sim:
                 results.append((db_img, label, sim))
-                n += 1
+
+        results.sort(reverse=True, key=lambda x: x[2])
+        if len(results) > k:
+            results = results[:k]
 
         return results
 
