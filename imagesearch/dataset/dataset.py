@@ -14,6 +14,7 @@ import os
 import logging
 
 logger = logging.getLogger(__name__)
+CIFAR_LABELS = ['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck']
 
 def unpickle(file):
     with open(file, 'rb') as f:

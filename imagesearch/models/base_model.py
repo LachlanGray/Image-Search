@@ -27,3 +27,11 @@ class ImageEncoder(torch.nn.Module):
         x = self.fc3(x)
 
         return x
+
+def load_model(model_path, device=None):
+    checkpoint = torch.load(model_path)
+    net = ImageEncoder()
+    if device:
+        net.to(device)
+    net.load_state_dict(checkpoint['model'])
+    return net

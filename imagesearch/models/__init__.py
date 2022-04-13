@@ -1,1 +1,1 @@
-from .base_model import ImageEncoder
+from .base_model import ImageEncoder, load_model
