@@ -7,6 +7,7 @@ import torch
 from torch.utils.data import Dataset, Sampler
 from tqdm.autonotebook import tqdm
 
+import numpy as np
 import pickle
 import requests
 import tarfile
@@ -66,6 +67,22 @@ def download_cifar10(dir='./datasets', chunk_size=1024):
     logger.info("Unzipping {}...".format(zip_path))
     unzip(zip_file=zip_path, out_dir=dir)
 
+def load_cifar_img(img):
+    '''
+    im = data[b'data'][im_idx, :]
+
+    im_r = im[0:1024].reshape(32, 32)
+    im_g = im[1024:2048].reshape(32, 32)
+    im_b = im[2048:].reshape(32, 32)
+
+    img = np.dstack((im_r, im_g, im_b))
+    '''
+    if len(img.shape) != 1 or img.shape[0] != 3*32*32:
+        raise Exception("Unexpected image shape {}".format(img.shape))
+    im_r = img[0:1024].reshape(32, 32)
+    im_g = img[1024:2048].reshape(32, 32)
+    im_b = img[2048:].reshape(32, 32)
+    return np.dstack((im_r, im_g, im_b)).reshape(3, 32, 32)
 
 def load_cifar10(dir='./datasets/cifar-10-batches-py'):
     '''
@@ -80,12 +97,12 @@ def load_cifar10(dir='./datasets/cifar-10-batches-py'):
         data = unpickle(dir + '/' + file)
 
         for label, img in zip(data['labels'], data['data']):
-            train[label].append(img.reshape(3, 32, 32))
+            train[label].append(load_cifar_img(img))
 
     test = {i: [] for i in range(10)}
     data = unpickle(dir + '/test_batch')
     for label, img in zip(data['labels'], data['data']):
-        test[label].append(img.reshape(3, 32, 32))
+        test[label].append(load_cifar_img(img))
 
     return train, test
 
