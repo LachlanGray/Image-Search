@@ -96,6 +96,7 @@ if __name__ == '__main__':
     parser.add_argument("--k", dest="k", type=int, default=5)
     parser.add_argument("--min-sim", dest="min_sim", type=float, default=-1.0)
     parser.add_argument("--max-sim", dest="max_sim", type=float, default=1.0)
+    parser.add_argument("--output", dest="output", type=str, default="search-results.png")
     args = vars(parser.parse_args(sys.argv[1:]))
     model_path = args['model_path']
     k = args['k']
@@ -119,6 +120,18 @@ if __name__ == '__main__':
     search_results = db.search(search_img, k, min_sim=min_sim, max_sim=max_sim)
     logging.info("search returned {} results".format(len(search_results)))
 
+    import matplotlib.pyplot as plt
+
     k = len(search_results)
     if k > 0:
-        pass
+        plt.subplots(1, k+1, figsize=(11,3), dpi=300)
+        plt.subplot(1, k+1, 1)
+        plt.imshow(search_img.reshape(32, 32, 3))
+        plt.title("{}".format(CIFAR_LABELS[args['label']]))
+        for i in range(k):
+            plt.subplot(1, k+1, i+2)
+            result_img, label, sim = search_results[i]
+            plt.imshow(result_img.reshape(32, 32, 3))
+            plt.title("{}\nsim={:.2f}".format(CIFAR_LABELS[label], sim))
+        plt.tight_layout()
+        plt.savefig(args['output'])
