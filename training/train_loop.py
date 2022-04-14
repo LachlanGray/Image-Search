@@ -16,8 +16,9 @@ from imagesearch.models import ImageEncoder
 def get_device():
     return torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-def train(train_ds, test_ds, n_samples, n_epochs, model_path=None):
-    device = get_device()
+def train(train_ds, test_ds, n_samples, n_epochs, model_path=None, device=None):
+    if device is None:
+        device = get_device()
     train_loader = DataLoader(
         train_ds,
         batch_size=64,
