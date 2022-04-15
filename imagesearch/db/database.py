@@ -84,11 +84,20 @@ class ImageDatabase (object):
             sim = F.cosine_similarity(enc, db_enc, dim=0).item()
             if round(sim) == 1:
                 sim += 1/max(1e-8, torch.norm(db_enc-enc).item())
-            results.append((db_img, label, sim))
+            if k > 0:
+                if len(results) == k:
+                    j = 0
+                    for i in range(1,k):
+                        if results[i][2] < results[j][2]:
+                            j = i
+                    if sim > results[j][2]:
+                        results[j] = (db_img, label, sim)
+                else:
+                    results.append((db_img, label, sim))
+            else:
+                results.append((db_img, label, sim))
 
         results.sort(reverse=True, key=lambda x: x[2])
-        if k > 0 and len(results) > k:
-            results = results[:k]
 
         return results
 
@@ -102,11 +111,20 @@ class ImageDatabase (object):
             db_img = self.imgs[i]
             label = self.labels[i].item()
             dist = torch.norm(db_enc-enc).item()
-            results.append((db_img, label, dist))
+            if k > 0:
+                if len(results) == k:
+                    j = 0
+                    for i in range(1,k):
+                        if results[i][2] > results[j][2]:
+                            j = i
+                    if dist < results[j][2]:
+                        results[j] = (db_img, label, dist)
+                else:
+                    results.append((db_img, label, dist))
+            else:
+                results.append((db_img, label, dist))
 
         results.sort(key=lambda x: x[2])
-        if k > 0 and len(results) > k:
-            results = results[:k]
 
         return results
 
