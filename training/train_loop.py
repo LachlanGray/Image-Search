@@ -16,7 +16,7 @@ from imagesearch.models import ImageEncoder
 def get_device():
     return torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-def train(train_ds, test_ds, n_samples, n_epochs, model_path=None, device=None):
+def train(train_ds, test_ds, n_samples, n_epochs, output_vector_size=10, model_path=None, device=None):
     if device is None:
         device = get_device()
     train_loader = DataLoader(
@@ -30,7 +30,7 @@ def train(train_ds, test_ds, n_samples, n_epochs, model_path=None, device=None):
         batch_size=64,
         sampler=RandomSubsetSampler(len(test_ds), n_test_samples)
     )
-    net = ImageEncoder()
+    net = ImageEncoder(output_vector_size=output_vector_size)
     net.to(device)
     optimizer = torch.optim.Adam(net.parameters())
     loss_fn = torch.nn.TripletMarginWithDistanceLoss(distance_function=lambda x, y: 1.0 - torch.nn.functional.cosine_similarity(x, y))

@@ -1,20 +1,24 @@
 import argparse
 import logging
+import matplotlib.pyplot as plt
 import sys
 import torch
 
 from imagesearch import LoggingHandler
+from imagesearch.db import ImageDatabase
 from imagesearch.models import ImageEncoder
 from imagesearch.dataset import CIFAR_LABELS, load_cifar10, TripletDataset
 from training.train_loop import train
 
-def train_model(train_ds, test_ds, n_samples, n_epochs, device):
+def train_model(train_ds, test_ds, n_samples, n_epochs, output_vector_size, device):
     train_ds = TripletDataset(train_ds, device=device)
-    test_ds = TripletDataset(train_ds, device=device)
+    test_ds = TripletDataset(test_ds, device=device)
 
-    logging.info("training. epochs={} samples={}".format(n_epochs, n_samples))
-    train(train_ds, test_ds, n_samples, n_epochs, device=device)
+    logging.info("training. epochs={} samples={} output-vector-size={}".format(n_epochs, n_samples, output_vector_size))
+    net = train(train_ds, test_ds, n_samples, n_epochs, output_vector_size=output_vector_size, device=device)
     logging.info("done training")
+
+    return net
 
 
 if __name__ == '__main__':
@@ -24,9 +28,10 @@ if __name__ == '__main__':
     parser.add_argument("--train-samples", dest="train_samples", type=int, default=50000)
     parser.add_argument("--epochs", dest="epochs", type=int, default=20)
     parser.add_argument("--test-samples", dest="test_samples", type=int, default=500)
-    parser.add_argument("--min-k", dest="min_k", type=int, default=5)
-    parser.add_argument("--max-k", dest="max_k", type=int, default=10)
-    parser.add_argument("--k-step", dest="k_step", type=int, default=1)
+    parser.add_argument("--k", dest="k", type=int, default=5)
+    parser.add_argument("--min-vector-size", dest="min_vector_size", type=int, default=10)
+    parser.add_argument("--max-vector-size", dest="max_vector_size", type=int, default=100)
+    parser.add_argument("--vector-size-step", dest="vector_size_step", type=int, default=10)
     parser.add_argument("--output", dest="output", type=str, default='acc.png')
     args = vars(parser.parse_args(sys.argv[1:]))
 
@@ -35,9 +40,11 @@ if __name__ == '__main__':
     n_train_samples = args['train_samples']
     n_test_samples = args['test_samples']
     n_epochs = args['epochs']
-    min_k = args['min_k']
-    max_k = args['max_k']
-    k_step = args['k_step']
+    min_vector_size = args['min_vector_size']
+    max_vector_size = args['max_vector_size']
+    vector_size_step = args['vector_size_step']
+    vector_size_range = range(min_vector_size, max_vector_size+1, vector_size_step)
+    k = args['k']
 
     #### Just some code to print debug information to stdout
     logging.basicConfig(format='%(asctime)s - %(message)s',
@@ -45,15 +52,38 @@ if __name__ == '__main__':
                         level=logging.INFO,
                         handlers=[LoggingHandler()])
 
+    logging.info("using training device: {}".format(train_device))
+    logging.info("using test device: {}".format(test_device))
+
+    logging.info("loading dataset")
     train_ds, test_ds = load_cifar10()
+    logging.info("loaded dataset")
 
-    for k in range(min_k, max_k+1, k_step):
-        net = train_model(train_ds, test_ds)
+    score_accs = []
+    dist_accs = []
 
-        # TODO: Sample the dataset.
+    for output_vector_size in vector_size_range:
+        net = train_model(train_ds, test_ds, n_train_samples, n_epochs, output_vector_size, train_device)
+        net = net.to(test_device)
 
-        # TODO: Evaluate the model.
+        logging.info("loading database")
+        db = ImageDatabase(train_ds, net, test_device)
+        logging.info("loaded database. size={}".format(len(db)))
 
-        # TODO: Add a data point.
+        logging.info("evaluating model on search by score")
+        score_acc = db.evaluate(test_ds, n_test_samples, k)
+        logging.info("search by score accuracy: {:.2f}".format(100*score_acc))
+
+        logging.info("evaluating model on search by distance")
+        dist_acc = db.evaluate(test_ds, n_test_samples, k, by_score=False)
+        logging.info("search by score distance: {:.2f}".format(100*dist_acc))
+
+        score_accs.append(score_acc)
+        dist_accs.append(dist_acc)
     
-    # TODO: Plot results.
+    plt.figure(figsize=(11, 8), dpi=300)
+    plt.plot(vector_size_range, score_accs, label='score')
+    plt.plot(vector_size_range, dist_accs, label='distance')
+    plt.xlabel('Latent Vector Size')
+    plt.ylabel('Accuracy')
+    plt.savefig(args['output'])
