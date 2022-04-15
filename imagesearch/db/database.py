@@ -1,5 +1,6 @@
 import argparse
 import logging
+import random
 from imagesearch import LoggingHandler
 from imagesearch.models import ImageEncoder, load_model
 import os
@@ -109,6 +110,31 @@ class ImageDatabase (object):
 
         return results
 
+    def evaluate(self, test_ds, n_samples, k, by_score=True):
+        '''
+        Evaluate the encoder by sample n_samples images from each class in test_ds.
+        Return the mean accuracy where accuracy is the proportion of images returned
+        by the search in the same class.
+        '''
+        test_imgs = []
+        acc = 0
+
+        for label in test_ds:
+            sample = random.sample(test_ds[label], n_samples)
+            for test_img in sample:
+                test_imgs.append((test_img, label))
+        
+        for test_img, label in test_imgs:
+            if by_score:
+                results = self.search_by_score(test_img, k)
+            else:
+                results = self.search_by_distance(test_img, k)
+            
+            acc += len(list(filter(lambda x: x[1] == label, results)))/k
+        
+        return acc/len(test_imgs)
+
+
 if __name__ == '__main__':
     from imagesearch.models import ImageEncoder
     from imagesearch.dataset import CIFAR_LABELS, load_cifar10
@@ -127,6 +153,7 @@ if __name__ == '__main__':
     parser.add_argument("--label", dest="label", type=int, default=0)
     parser.add_argument("--index", dest="index", type=int, default=0)
     parser.add_argument("--k", dest="k", type=int, default=5)
+    parser.add_argument("--evaluate-samples", dest="evaluate_samples", type=int, default=0)
     parser.add_argument("--output", dest="output", type=str, default="search-results.png")
     args = vars(parser.parse_args(sys.argv[1:]))
     model_path = args['model_path']
@@ -147,29 +174,36 @@ if __name__ == '__main__':
     db = ImageDatabase(train, net, device)
     logging.info("loaded database. size={}".format(len(db)))
 
-    logging.info("searching for k={} similar images to image (label={}, index={}) in test".format(k, CIFAR_LABELS[args['label']], args['index']))
-    search_img = test[args['label']][args['index']]
-    if args['search_by_score']:
-        search_results = db.search_by_score(search_img, k)
+    evaluate_samples = args['evaluate_samples']
+    if evaluate_samples > 0:
+        if args['search_by_score']:
+            logging.info("search by score accuracy = {:.2f}".format(100*db.evaluate(test, evaluate_samples, k)))
+        else:
+            logging.info("search by distance accuracy = {:.2f}".format(100*db.evaluate(test, evaluate_samples, k, by_score=False)))
     else:
-        search_results = db.search_by_distance(search_img, k)
-    logging.info("search returned {} results".format(len(search_results)))
+        logging.info("searching for k={} similar images to image (label={}, index={}) in test".format(k, CIFAR_LABELS[args['label']], args['index']))
+        search_img = test[args['label']][args['index']]
+        if args['search_by_score']:
+            search_results = db.search_by_score(search_img, k)
+        else:
+            search_results = db.search_by_distance(search_img, k)
+        logging.info("search returned {} results".format(len(search_results)))
 
-    import matplotlib.pyplot as plt
+        import matplotlib.pyplot as plt
 
-    k = len(search_results)
-    if k > 0:
-        plt.subplots(1, k+1, figsize=(11,3), dpi=300)
-        plt.subplot(1, k+1, 1)
-        plt.imshow(search_img.reshape(32, 32, 3))
-        plt.title("{}".format(CIFAR_LABELS[args['label']]))
-        for i in range(k):
-            plt.subplot(1, k+1, i+2)
-            result_img, label, d = search_results[i]
-            plt.imshow(result_img.cpu().reshape(32, 32, 3))
-            if args['search_by_score']:
-                plt.title("{}\nscore={:.2f}".format(CIFAR_LABELS[label], d))
-            else:
-                plt.title("{}\ndist={:.2f}".format(CIFAR_LABELS[label], d))
-        plt.tight_layout()
-        plt.savefig(args['output'])
+        k = len(search_results)
+        if k > 0:
+            plt.subplots(1, k+1, figsize=(11,3), dpi=300)
+            plt.subplot(1, k+1, 1)
+            plt.imshow(search_img.reshape(32, 32, 3))
+            plt.title("{}".format(CIFAR_LABELS[args['label']]))
+            for i in range(k):
+                plt.subplot(1, k+1, i+2)
+                result_img, label, d = search_results[i]
+                plt.imshow(result_img.cpu().reshape(32, 32, 3))
+                if args['search_by_score']:
+                    plt.title("{}\nscore={:.2f}".format(CIFAR_LABELS[label], d))
+                else:
+                    plt.title("{}\ndist={:.2f}".format(CIFAR_LABELS[label], d))
+            plt.tight_layout()
+            plt.savefig(args['output'])
