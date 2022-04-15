@@ -86,4 +86,5 @@ if __name__ == '__main__':
     plt.plot(vector_size_range, dist_accs, label='distance')
     plt.xlabel('Latent Vector Size')
     plt.ylabel('Accuracy')
+    plt.legend()
     plt.savefig(args['output'])
