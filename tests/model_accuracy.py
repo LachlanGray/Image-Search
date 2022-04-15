@@ -3,16 +3,17 @@ import logging
 import sys
 import torch
 
+from imagesearch import LoggingHandler
 from imagesearch.models import ImageEncoder
-from imagesearch.dataset import CIFAR_LABELS, load_cifar10
+from imagesearch.dataset import CIFAR_LABELS, load_cifar10, TripletDataset
 from training.train_loop import train
 
 def train_model(train_ds, test_ds, n_samples, n_epochs, device):
-    train_ds = TripletDataset(train_dic, device=device)
-    test_ds = TripletDataset(test_dic, device=device)
+    train_ds = TripletDataset(train_ds, device=device)
+    test_ds = TripletDataset(train_ds, device=device)
 
     logging.info("training. epochs={} samples={}".format(n_epochs, n_samples))
-    train(train_ds, test_ds, n_samples, n_epochs, model_path, device)
+    train(train_ds, test_ds, n_samples, n_epochs, device=device)
     logging.info("done training")
 
 

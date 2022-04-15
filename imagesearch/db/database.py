@@ -29,7 +29,7 @@ class ImageDatabase (object):
             self.device = device
         else:
             self.device = get_device()
-        self.db = self.encode_images()
+        self.index, self.imgs, self.labels = self.encode_images()
 
     def encode_image(self, img):
         n = len(img.shape)
@@ -44,16 +44,24 @@ class ImageDatabase (object):
         return enc.squeeze()
 
     def encode_images(self):
-        db = []
+        index = []
+        imgs = []
+        labels = []
 
         for label in self.dataset:
             for img in self.dataset[label]:
-                db.append((self.encode_image(img).to(self.device), img, label))
+                index.append(self.encode_image(img))
+                imgs.append(torch.tensor(img))
+                labels.append(label)
 
-        return db
+        index = torch.stack(index).to(self.device)
+        imgs = torch.stack(imgs).to(self.device)
+        labels = torch.tensor(labels).long().to(self.device)
+
+        return index, imgs, labels
 
     def __len__(self):
-        return len(self.db)
+        return self.index.shape[0]
 
     def search_by_score(self, img, k=0):
         '''
@@ -66,8 +74,12 @@ class ImageDatabase (object):
         '''
         results = []
         enc = self.encode_image(img).to(self.device)
+        db_size = self.__len__()
 
-        for db_enc, db_img, label in self.db:
+        for i in range(db_size):
+            db_enc = self.index[i]
+            db_img = self.imgs[i]
+            label = self.labels[i].item()
             sim = F.cosine_similarity(enc, db_enc, dim=0).item()
             if round(sim) == 1:
                 sim += 1/max(1e-8, torch.norm(db_enc-enc).item())
@@ -82,8 +94,12 @@ class ImageDatabase (object):
     def search_by_distance(self, img, k=0):
         results = []
         enc = self.encode_image(img).to(self.device)
+        db_size = self.__len__()
 
-        for db_enc, db_img, label in self.db:
+        for i in range(db_size):
+            db_enc = self.index[i]
+            db_img = self.imgs[i]
+            label = self.labels[i].item()
             dist = torch.norm(db_enc-enc).item()
             results.append((db_img, label, dist))
 
@@ -150,7 +166,7 @@ if __name__ == '__main__':
         for i in range(k):
             plt.subplot(1, k+1, i+2)
             result_img, label, d = search_results[i]
-            plt.imshow(result_img.reshape(32, 32, 3))
+            plt.imshow(result_img.cpu().reshape(32, 32, 3))
             if args['search_by_score']:
                 plt.title("{}\nscore={:.2f}".format(CIFAR_LABELS[label], d))
             else:

@@ -12,6 +12,7 @@ class ImageEncoder(torch.nn.Module):
 
     def __init__(self, output_vector_size=10):
         super(ImageEncoder, self).__init__()
+        self.output_vector_size = output_vector_size
         self.conv1 = nn.Conv2d(3, 6, 5)
         self.conv2 = nn.Conv2d(6, 16, 5)
         self.fc1 = nn.Linear(16 * 5 * 5, 120)
@@ -27,6 +28,9 @@ class ImageEncoder(torch.nn.Module):
         x = self.fc3(x)
 
         return x
+    
+    def get_output_vector_size(self):
+        return self.output_vector_size
 
 def load_model(model_path, device=None):
     checkpoint = torch.load(model_path)
