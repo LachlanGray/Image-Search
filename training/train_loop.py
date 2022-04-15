@@ -31,6 +31,7 @@ def train(train_ds, test_ds, n_samples, n_epochs, output_vector_size=10, model_p
         sampler=RandomSubsetSampler(len(test_ds), n_test_samples)
     )
     net = ImageEncoder(output_vector_size=output_vector_size)
+    best_net = net
     net.to(device)
     optimizer = torch.optim.Adam(net.parameters())
     loss_fn = torch.nn.TripletMarginWithDistanceLoss(distance_function=lambda x, y: 1.0 - torch.nn.functional.cosine_similarity(x, y))
@@ -89,6 +90,8 @@ def train(train_ds, test_ds, n_samples, n_epochs, output_vector_size=10, model_p
                     "model": net.state_dict()
                 }, model_path)
             best_loss = test_loss
+            best_net = ImageEncoder(output_vector_size=output_vector_size)
+            best_net.load_state_dict(net.state_dict())
 
     return net
 
