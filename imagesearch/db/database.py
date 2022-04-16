@@ -1,18 +1,43 @@
 import argparse
 import logging
 import random
+from tqdm.autonotebook import trange
 from imagesearch import LoggingHandler
 from imagesearch.models import ImageEncoder, load_model
 import os
 import sys
 import torch
 import torch.nn.functional as F 
+import numpy as np
+
+logger = logging.getLogger(__name__)
 
 def get_device():
     return torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 def default_similarity(x1,x2):
     return F.cosine_similarity(x1, x2, dim=0)
+
+def cos_sim(a: torch.Tensor, b: torch.Tensor):
+    """
+    Computes the cosine similarity cos_sim(a[i], b[j]) for all i and j.
+    :return: Matrix with res[i][j]  = cos_sim(a[i], b[j])
+    """
+    if not isinstance(a, torch.Tensor):
+        a = torch.tensor(a)
+
+    if not isinstance(b, torch.Tensor):
+        b = torch.tensor(b)
+
+    if len(a.shape) == 1:
+        a = a.unsqueeze(0)
+
+    if len(b.shape) == 1:
+        b = b.unsqueeze(0)
+
+    a_norm = torch.nn.functional.normalize(a, p=2, dim=1)
+    b_norm = torch.nn.functional.normalize(b, p=2, dim=1)
+    return torch.mm(a_norm, b_norm.transpose(0, 1))
 
 class ImageDatabase (object):
     '''
@@ -30,7 +55,7 @@ class ImageDatabase (object):
             self.device = device
         else:
             self.device = get_device()
-        self.index, self.imgs, self.labels = self.encode_images()
+        self.index, self.imgs, self.labels, self.id2label, self.id2img = self.encode_images()
 
     def encode_image(self, img):
         n = len(img.shape)
@@ -48,18 +73,24 @@ class ImageDatabase (object):
         index = []
         imgs = []
         labels = []
+        id2label = {}
+        id2img = {}
+        idx = 0
 
         for label in self.dataset:
             for img in self.dataset[label]:
+                id2label[idx] = label
+                id2img[idx] = torch.tensor(img)
                 index.append(self.encode_image(img))
                 imgs.append(torch.tensor(img))
                 labels.append(label)
+                idx += 1
 
         index = torch.stack(index).to(self.device)
         imgs = torch.stack(imgs).to(self.device)
         labels = torch.tensor(labels).long().to(self.device)
 
-        return index, imgs, labels
+        return index, imgs, labels, id2label, id2img
 
     def __len__(self):
         return self.index.shape[0]
@@ -151,6 +182,84 @@ class ImageDatabase (object):
             acc += len(list(filter(lambda x: x[1] == label, results)))/k
         
         return acc/len(test_imgs)
+
+    def evaluate_all(self, test_ds, top_k=10, k_values=[1,3,5,10], batch_size=128):
+        '''
+        Evaluate the encoder by all images from each class in test_ds.
+        Return the mean accuracy where accuracy is the proportion of images returned
+        by the search in the same class.
+        '''
+        query_embs = []
+        query_labels = []
+        accuracy = {f"Accuracy@{k}": 0.0 for k in k_values}
+        MAP = {f"MAP@{k}": [] for k in k_values}
+
+        # Encoding query images
+        logging.info("Encoding the query Images...")
+        
+        for label in test_ds:
+            for test_img in test_ds[label]:
+                query_embs.append(self.encode_image(test_img))
+                query_labels.append(label)
+        
+        query_embs = torch.stack(query_embs).to(self.device)
+        cos_scores_top_k_values, cos_scores_top_k_idx = [], []
+        k_max = max(k_values)
+
+        logging.info("Evaluating the model with Cosine Similarity...")
+
+        for query_start_idx in trange(0, len(query_embs), batch_size, desc=f'Query Evaluation in {batch_size} Chunks'):
+            query_end_idx = min(query_start_idx + batch_size, len(query_embs))
+            query_batch = query_embs[query_start_idx:query_end_idx]
+        
+            #Compute similarites using either cosine-similarity or dot product
+            cos_scores = cos_sim(query_batch, self.index)
+            cos_scores[torch.isnan(cos_scores)] = -1
+
+            #Get top-k values (sorted=False)
+            cos_scores_top_k_values_batch, cos_scores_top_k_idx_batch = torch.topk(cos_scores, min(k_max+1, len(cos_scores[0])), dim=1, largest=True, sorted=False)
+            cos_scores_top_k_values += cos_scores_top_k_values_batch.cpu().tolist()
+            cos_scores_top_k_idx += cos_scores_top_k_idx_batch.cpu().tolist()
+
+        # Accuracy@k. MAP@k
+        for query_itr in range(len(query_embs)):
+            query_label = query_labels[query_itr]
+            doc_scores = dict(zip(cos_scores_top_k_idx[query_itr], cos_scores_top_k_values[query_itr]))
+            top_hits = sorted(doc_scores.items(), key=lambda item: item[1], reverse=True)[0:k_max]
+            
+            # Accuracy@k
+            for k in k_values:
+                acc = len(list(filter(lambda x: self.id2label[x[0]] == query_label, top_hits[0:k]))) / k
+                accuracy[f"Accuracy@{k}"] += acc
+            
+            # MAP@k
+            for k in k_values:
+                num_correct = 0
+                sum_precisions = 0
+
+                for rank, hit in enumerate(top_hits[0:k]):
+                    label = self.id2label[hit[0]]
+                    if label == query_label:
+                        num_correct += 1
+                        sum_precisions += num_correct / (rank + 1)
+            
+                avg_precision = sum_precisions / k
+                MAP[f"MAP@{k}"].append(avg_precision)
+            
+        # Average Accuracy@k and MAP@k
+        for k in k_values:
+            accuracy[f"Accuracy@{k}"] = round(accuracy[f"Accuracy@{k}"]/len(query_embs), 5)
+            logging.info("Accuracy@{}: {:.4f}".format(k, accuracy[f"Accuracy@{k}"]))
+        
+        logging.info("\n\n")
+        
+        for k in k_values:
+            MAP[f"MAP@{k}"] = np.mean(MAP[f"MAP@{k}"])
+            logging.info("MAP@{}: {:.4f}".format(k, MAP[f"MAP@{k}"]))
+        
+        logging.info("\n\n")
+        
+        return accuracy, MAP
 
 
 if __name__ == '__main__':
