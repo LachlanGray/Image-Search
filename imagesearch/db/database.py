@@ -6,6 +6,7 @@ from imagesearch import LoggingHandler
 from imagesearch.models import ImageEncoder, load_model
 import os
 import sys
+import time
 import torch
 import torch.nn.functional as F 
 import numpy as np
@@ -104,15 +105,23 @@ class ImageDatabase (object):
 
             img - input image
         '''
+        start_t = 0
+        enc_time = 0
+        comp_time = 0
+
         results = []
+        start_t = time.time()
         enc = self.encode_image(img).to(self.device)
+        enc_time = time.time() - start_t
         db_size = self.__len__()
 
         for i in range(db_size):
             db_enc = self.index[i]
             db_img = self.imgs[i]
             label = self.labels[i].item()
+            start_t = time.time()
             sim = F.cosine_similarity(enc, db_enc, dim=0).item()
+            comp_time += time.time() - start_t
             if round(sim) == 1:
                 sim += 1/max(1e-8, torch.norm(db_enc-enc).item())
             if k > 0:
@@ -129,6 +138,7 @@ class ImageDatabase (object):
                 results.append((db_img, label, sim))
 
         results.sort(reverse=True, key=lambda x: x[2])
+        print("encoding time: {:.3f}s. comparison time: {:.3f}s".format(enc_time, comp_time))
 
         return results
 
