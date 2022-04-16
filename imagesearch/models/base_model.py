@@ -24,12 +24,9 @@ class ImageEncoder(torch.nn.Module):
         self.fc2 = nn.Linear(128, output_vector_size)
 
     def forward(self, x):
-        x = F.max_pool2d(F.relu(self.conv1(x)), 2)
-        x = self.bn1(x)
-        x = F.max_pool2d(F.relu(self.conv2(x)), 2)
-        x = self.bn2(x)
-        x = F.max_pool2d(F.relu(self.conv3(x)), 2)
-        x = self.bn3(x)
+        x = F.max_pool2d(F.relu(self.bn1(self.conv1(x))), 2)
+        x = F.max_pool2d(F.relu(self.bn2(self.conv2(x))), 2)
+        x = F.max_pool2d(F.relu(self.bn3(self.conv3(x))), 2)
         x = torch.flatten(x, 1)
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
@@ -39,34 +36,30 @@ class ImageEncoder(torch.nn.Module):
     def get_output_vector_size(self):
         return self.output_vector_size
 
-class ImageDecoder(torch.nn.module):
+class ImageDecoder(torch.nn.Module):
 
-    def __init__(self, input_vector_size=10, output_shape=(3, 32, 32)):
+    def __init__(self, input_vector_size=10):
+        super(ImageDecoder, self).__init__()
         self.input_vector_size = input_vector_size
-        self.output_vector_size = output_vector_size = np.prod(output_shape)
         self.fc1 = nn.Linear(input_vector_size, 128)
-        self.fc2 = nn.Linear(128, 256)
-        self.fc3 = nn.Linear(256, 512)
-        self.fc4 = nn.Linear(512, output_vector_size)
+        self.fc2 = nn.Linear(128, 32 * 4 * 4)
+        self.unflatten = nn.Unflatten(dim=1, unflattened_size=(32, 4, 4))
+        self.deconv1 = nn.ConvTranspose2d(32, 16, 3, stride=2, output_padding=1)
+        self.bn1 = nn.BatchNorm2d(16)
+        self.deconv2 = nn.ConvTranspose2d(16, 8, 3, stride=2, output_padding=1)
+        self.bn2 = nn.BatchNorm2d(8)
+        self.deconv3 = nn.ConvTranspose2d(8, 3, 3, stride=2, output_padding=1)
+        self.bn3 = nn.BatchNorm2d(3)
     
     def forward(self, x):
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
-        x = F.relu(self.fc3(x))
+        x = self.unflatten(x)
+        x = F.relu(self.bn1(self.deconv1(x)))
+        x = F.relu(self.bn2(self.deconv2(x)))
+        x = self.bn3(self.deconv3(x))
 
         return x
-
-class AutoEncoder(torch.nn.module):
-
-    def __init__(self, output_vector_size=10, output_shape=(3, 32, 32)):
-        self.enc = ImageEncoder(output_vector_size=output_vector_size)
-        self.dec = ImageDecoder(input_vector_size=output_vector_size, output_shape=output_shape)
-    
-    def forward(self, x):
-        y = self.enc(x)
-        y = self.dec(y)
-
-        return y
 
 def load_model(model_path, device=None):
     checkpoint = torch.load(model_path)

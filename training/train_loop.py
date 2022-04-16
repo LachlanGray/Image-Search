@@ -3,6 +3,7 @@ Main training loop
 
 '''
 import argparse
+from re import I
 import torch
 import os
 import logging
@@ -11,7 +12,7 @@ import sys
 
 from imagesearch import LoggingHandler
 from imagesearch.dataset import download_cifar10, load_cifar10, TripletDataset, RandomSubsetSampler
-from imagesearch.models import ImageEncoder
+from imagesearch.models import ImageEncoder, ImageDecoder
 
 def get_device():
     return torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -30,10 +31,13 @@ def train(train_ds, test_ds, n_samples, n_epochs, model_path=None, device=None, 
         batch_size=64,
         sampler=RandomSubsetSampler(len(test_ds), n_test_samples)
     )
-    net = ImageEncoder(output_vector_size=output_vector_size)
-    best_net = net
-    net.to(device)
-    optimizer = torch.optim.Adam(net.parameters())
+    enc = ImageEncoder(output_vector_size=output_vector_size).to(device)
+    dec = ImageDecoder(input_vector_size=output_vector_size).to(device)
+    best_enc = enc
+    best_dec = dec
+    enc_optimizer = torch.optim.Adam(enc.parameters())
+    dec_optimizer = torch.optim.Adam(dec.parameters())
+    mse_loss = torch.nn.MSELoss()
     loss_fn = torch.nn.TripletMarginWithDistanceLoss(distance_function=lambda x, y: 1.0 - torch.nn.functional.cosine_similarity(x, y))
     # loss_fn = torch.nn.TripletMarginLoss()
     best_loss = float('inf')
@@ -47,27 +51,31 @@ def train(train_ds, test_ds, n_samples, n_epochs, model_path=None, device=None, 
         for data in train_loader:
             a, p, n = data
 
-            optimizer.zero_grad()
+            enc_optimizer.zero_grad()
+            dec_optimizer.zero_grad()
 
-            z_a = net(a)
-            z_p = net(p)
-            z_n = net(n)
+            z_a = enc(a)
+            z_p = enc(p)
+            z_n = enc(n)
 
             loss = loss_fn(z_a, z_p, z_n)
+            loss += mse_loss(a, dec(z_a))
             loss.backward()
 
-            optimizer.step()
+            enc_optimizer.step()
+            dec_optimizer.step()
             total_loss += loss
             n_batches += 1
 
         for data in test_loader:
             with torch.no_grad():
                 a, p, n = data
-                z_a = net(a)
-                z_p = net(p)
-                z_n = net(n)
+                z_a = enc(a)
+                z_p = enc(p)
+                z_n = enc(n)
 
                 loss = loss_fn(z_a, z_p, z_n)
+                loss += mse_loss(a, dec(z_a))
                 test_loss += loss
                 n_test_batches += 1
 
@@ -84,16 +92,18 @@ def train(train_ds, test_ds, n_samples, n_epochs, model_path=None, device=None, 
                 # except Exception as e:
                 #     logging.warn("Error trying to make model output directory: {}".format(str(e)))
                 #     continue
-                torch.save({
-                    "epoch": epoch,
-                    "loss": test_loss,
-                    "model": net.state_dict()
-                }, model_path)
+                # torch.save({
+                #     "epoch": epoch,
+                #     "loss": test_loss,
+                #     "model": net.state_dict()
+                # }, model_path)
             best_loss = test_loss
-            best_net = ImageEncoder(output_vector_size=output_vector_size)
-            best_net.load_state_dict(net.state_dict())
+            best_enc = ImageEncoder(output_vector_size=output_vector_size)
+            best_dec = ImageDecoder(input_vector_size=output_vector_size)
+            best_enc.load_state_dict(enc.state_dict())
+            best_dec.load_state_dict(dec.state_dict())
 
-    return net
+    return best_enc, best_dec
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
