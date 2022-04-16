@@ -225,7 +225,7 @@ class ImageDatabase (object):
         for query_itr in range(len(query_embs)):
             query_label = query_labels[query_itr]
             doc_scores = dict(zip(cos_scores_top_k_idx[query_itr], cos_scores_top_k_values[query_itr]))
-            top_hits = sorted(doc_scores.items(), key=lambda item: item[1], reverse=True)[0:k_max]
+            top_hits = sorted(doc_scores.items(), key=lambda item: item[1], reverse=True)[1:k_max+1]
             
             # Accuracy@k
             for k in k_values:

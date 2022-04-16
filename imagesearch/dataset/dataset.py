@@ -107,6 +107,37 @@ def load_cifar10(dir='./datasets/cifar-10-batches-py'):
     return train, test
 
 
+class AutoDataset(Dataset):
+    """
+    Creates a PyTorch dataset from Autoencoder, returning two tensor images.
+    Args: 
+    class_dic : dictionary of class_name: list_of_images
+    device: device to load the data to.
+    """
+
+    def __init__(self, class_dic, device=None):
+        self.class_size = len(next(iter(class_dic.values())))
+        self.n_classes = len(class_dic)
+        self.device = device if device is not None else torch.device('cpu')
+        self.examples = self.get_all_examples(class_dic)
+
+        if not all(self.class_size == len(x) for x in class_dic.values()):
+            raise Exception("All classes must have the same number of examples")
+        
+    def get_all_examples(self, class_dic):
+        examples = []
+        for X in class_dic.values():
+            for x in X:
+                examples.append((torch.from_numpy(x) / 255).to(self.device))
+        return examples
+
+    def __len__(self):
+        return self.n_classes * self.class_size
+
+    def __getitem__(self, idx):
+        return self.examples[idx], self.examples[idx]
+
+
 class TripletDataset(Dataset):
     '''
     Custom dataset for producing (anchor, positive, negative) triplets.
