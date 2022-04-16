@@ -44,11 +44,11 @@ class ImageDecoder(torch.nn.Module):
         self.fc1 = nn.Linear(input_vector_size, 128)
         self.fc2 = nn.Linear(128, 32 * 4 * 4)
         self.unflatten = nn.Unflatten(dim=1, unflattened_size=(32, 4, 4))
-        self.deconv1 = nn.ConvTranspose2d(32, 16, 3, stride=2, output_padding=1)
+        self.deconv1 = nn.ConvTranspose2d(32, 16, 3, stride=2, padding=1, output_padding=1)
         self.bn1 = nn.BatchNorm2d(16)
-        self.deconv2 = nn.ConvTranspose2d(16, 8, 3, stride=2, output_padding=1)
+        self.deconv2 = nn.ConvTranspose2d(16, 8, 3, stride=2, padding=1, output_padding=1)
         self.bn2 = nn.BatchNorm2d(8)
-        self.deconv3 = nn.ConvTranspose2d(8, 3, 3, stride=2, output_padding=1)
+        self.deconv3 = nn.ConvTranspose2d(8, 3, 3, stride=2, padding=1, output_padding=1)
         self.bn3 = nn.BatchNorm2d(3)
     
     def forward(self, x):

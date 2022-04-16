@@ -34,7 +34,6 @@ def train(train_ds, test_ds, n_samples, n_epochs, model_path=None, device=None, 
     enc = ImageEncoder(output_vector_size=output_vector_size).to(device)
     dec = ImageDecoder(input_vector_size=output_vector_size).to(device)
     best_enc = enc
-    best_dec = dec
     enc_optimizer = torch.optim.Adam(enc.parameters())
     dec_optimizer = torch.optim.Adam(dec.parameters())
     mse_loss = torch.nn.MSELoss()
@@ -92,18 +91,16 @@ def train(train_ds, test_ds, n_samples, n_epochs, model_path=None, device=None, 
                 # except Exception as e:
                 #     logging.warn("Error trying to make model output directory: {}".format(str(e)))
                 #     continue
-                # torch.save({
-                #     "epoch": epoch,
-                #     "loss": test_loss,
-                #     "model": net.state_dict()
-                # }, model_path)
+                torch.save({
+                    "epoch": epoch,
+                    "loss": test_loss,
+                    "model": enc.state_dict()
+                }, model_path)
             best_loss = test_loss
             best_enc = ImageEncoder(output_vector_size=output_vector_size)
-            best_dec = ImageDecoder(input_vector_size=output_vector_size)
             best_enc.load_state_dict(enc.state_dict())
-            best_dec.load_state_dict(dec.state_dict())
 
-    return best_enc, best_dec
+    return best_enc
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
