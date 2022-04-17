@@ -85,9 +85,17 @@ if __name__ == '__main__':
     plt.figure(figsize=(11, 8), dpi=300)
     for k in accs:
         plt.plot(vector_size_range, accs[k], label=k)
+    plt.xlabel('Log Latent Vector Size')
+    plt.ylabel('Accuracy')
+    plt.title('Accuracy@k')
+    plt.legend()
+    plt.savefig('acc_k.png')
+
+    plt.figure(figsize=(11, 8), dpi=300)
     for k in maps:
         plt.plot(vector_size_range, maps[k], label=k)
     plt.xlabel('Log Latent Vector Size')
-    plt.ylabel('Accuracy')
+    plt.ylabel('MAP')
+    plt.title('MAP@k')
     plt.legend()
-    plt.savefig(args['output'])
+    plt.savefig('map_k.png')
