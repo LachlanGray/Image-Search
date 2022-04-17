@@ -66,8 +66,8 @@ class ImageDatabase (object):
             img = img.unsqueeze(0)
         elif n == 4:
             raise Exception('Invalid image')
-
-        enc = self.encoder.forward(img)
+        with torch.no_grad(): # we do not require gradient at inference!
+            enc = self.encoder.forward(img)
         return enc.squeeze()
 
     def encode_images(self):
@@ -193,7 +193,7 @@ class ImageDatabase (object):
         
         return acc/len(test_imgs)
 
-    def evaluate_all(self, test_ds, top_k=10, k_values=[1,3,5,10], batch_size=128):
+    def evaluate_all(self, test_ds, top_k=10, k_values=[1,3,5,10], batch_size=128, normalize=True):
         '''
         Evaluate the encoder by all images from each class in test_ds.
         Return the mean accuracy where accuracy is the proportion of images returned
@@ -205,13 +205,15 @@ class ImageDatabase (object):
         MAP = {f"MAP@{k}": [] for k in k_values}
 
         # Encoding query images
-        logging.info("Encoding the query Images...")
+        logging.info("Starting to Encode the Query Images...")
         
         for label in test_ds:
             for test_img in test_ds[label]:
                 query_embs.append(self.encode_image(test_img))
                 query_labels.append(label)
         
+        logging.info("Encoding done. Encoded {} query images with shape {}...".format(len(query_embs), query_embs[0].shape))
+
         query_embs = torch.stack(query_embs).to(self.device)
         cos_scores_top_k_values, cos_scores_top_k_idx = [], []
         k_max = max(k_values)

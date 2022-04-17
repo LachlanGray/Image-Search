@@ -11,31 +11,27 @@ import sys
 
 from imagesearch import LoggingHandler
 from imagesearch.dataset import download_cifar10, load_cifar10, AutoDataset
-from imagesearch.models import ConvEncoder, ConvDecoder
+from imagesearch.models import UvaEncoder, UvaDecoder
 
 def get_device():
     return torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-def train(train_ds, test_ds, n_epochs, model_path=None, device=None, batch_size=64, lr=0.001):
+def train(train_ds, test_ds, n_epochs, model_path=None, device=None, batch_size=64, lr=0.001, latent_dim=64):
     if device is None:
         device = get_device()
     
     train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True)
     test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=True)
 
-    encoder = ConvEncoder()
-    decoder = ConvDecoder()
-
-    # shift models to GPU
-    encoder.to(device)
-    decoder.to(device)
+    encoder = UvaEncoder(latent_dim=latent_dim).to(device)
+    decoder = UvaDecoder(latent_dim=latent_dim).to(device)
     
     # Both the enocder and decoder parameters
     autoencoder_params = list(encoder.parameters()) + list(decoder.parameters())
 
     # Adam Optimizer
     logging.info("Using Adam optimizer with learning rate = 0.001")
-    optimizer = torch.optim.Adam(autoencoder_params, lr=1e-3)
+    optimizer = torch.optim.Adam(autoencoder_params, lr=lr)
     
     # Loss function (MSE Loss)
     logging.info("Using MSE loss function")
@@ -53,8 +49,8 @@ def train(train_ds, test_ds, n_epochs, model_path=None, device=None, batch_size=
             if model_path:
                 logging.info("saving model to {}".format(model_path))
                 os.makedirs(model_path, exist_ok=True)
-                torch.save(encoder.state_dict(), os.path.join(model_path, "encoder_model.pt"))
-                torch.save(decoder.state_dict(), os.path.join(model_path, "decoder_model.pt"))
+                torch.save(encoder.state_dict(), os.path.join(model_path, "uva_encoder_{}_model.pt".format(latent_dim)))
+                torch.save(decoder.state_dict(), os.path.join(model_path, "uva_decoder_{}_model.pt".format(latent_dim)))
             
             best_loss = test_loss
 
@@ -65,8 +61,8 @@ def train_step(encoder, decoder, train_loader, loss_fn, optimizer, device):
     """
     Performs a single training step
     Args:
-    encoder: A convolutional Encoder. E.g. torch_model ConvEncoder
-    decoder: A convolutional Decoder. E.g. torch_model ConvDecoder
+    encoder: A convolutional Encoder. E.g. torch_model UvaEncoder
+    decoder: A convolutional Decoder. E.g. torch_model UvaDecoder
     train_loader: PyTorch dataloader, containing (images, images).
     loss_fn: PyTorch loss_fn, computes loss between 2 images.
     optimizer: PyTorch optimizer.
@@ -103,8 +99,8 @@ def test_step(encoder, decoder, val_loader, loss_fn, device):
     """
     Performs a single training step
     Args:
-    encoder: A convolutional Encoder. E.g. torch_model ConvEncoder
-    decoder: A convolutional Decoder. E.g. torch_model ConvDecoder
+    encoder: A convolutional Encoder. E.g. torch_model UvaEncoder
+    decoder: A convolutional Decoder. E.g. torch_model UvaDecoder
     val_loader: PyTorch dataloader, containing (images, images).
     loss_fn: PyTorch loss_fn, computes loss between 2 images.
     device: "cuda" or "cpu"
@@ -166,7 +162,7 @@ if __name__ == '__main__':
     model_path = args['model_path']
     batch_size = args['batch_size']
     lr = args['lr']
-    latent_dim = args['latent_dim']
+    latent_dim = args["latent_dim"]
 
     logging.info("Starting to Train for epochs={}".format(n_epochs))
     train(train_ds=train_ds, test_ds=test_ds, n_epochs=n_epochs, model_path=model_path, batch_size=batch_size, lr=lr, latent_dim=latent_dim)

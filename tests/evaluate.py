@@ -7,6 +7,7 @@ import torch
 
 from imagesearch import LoggingHandler
 from imagesearch.db import ImageDatabase
+from imagesearch.models import UvaEncoder, load_model_uva
 from imagesearch.models import ImageEncoder, load_model
 from imagesearch.dataset import CIFAR_LABELS, load_cifar10, TripletDataset
 from training.train_loop import train
@@ -40,10 +41,8 @@ if __name__ == '__main__':
     
     if model_path:
         logging.info("loading model from {}...".format(os.path.abspath(model_path)))
-        net = load_model(model_path, device)
+        net = load_model(model_path=model_path, device=device, output_vector_size=10)
         logging.info("loaded model...")
-    else:
-        net = ImageEncoder()
 
     logging.info("loading database...")
     db = ImageDatabase(test, net, device)
