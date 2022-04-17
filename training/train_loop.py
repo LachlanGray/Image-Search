@@ -17,7 +17,7 @@ from imagesearch.models import ImageEncoder, ImageDecoder
 def get_device():
     return torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-def train(train_ds, test_ds, n_samples, n_epochs, model_path=None, device=None, output_vector_size=10):
+def train(train_ds, test_ds, n_samples, n_epochs, model_path=None, device=None, output_vector_size=1000, lambda_val=0.7):
     if device is None:
         device = get_device()
     train_loader = DataLoader(
@@ -57,7 +57,7 @@ def train(train_ds, test_ds, n_samples, n_epochs, model_path=None, device=None, 
             z_p = enc(p)
             z_n = enc(n)
 
-            loss = loss_fn(z_a, z_p, z_n)
+            loss = lambda_val * loss_fn(z_a, z_p, z_n)
             loss += mse_loss(a, dec(z_a))
             loss.backward()
 
@@ -73,14 +73,14 @@ def train(train_ds, test_ds, n_samples, n_epochs, model_path=None, device=None, 
                 z_p = enc(p)
                 z_n = enc(n)
 
-                loss = loss_fn(z_a, z_p, z_n)
+                loss = lambda_val * loss_fn(z_a, z_p, z_n)
                 loss += mse_loss(a, dec(z_a))
                 test_loss += loss
                 n_test_batches += 1
 
         loss = total_loss / n_batches
         test_loss = test_loss / n_test_batches
-        logging.info("epoch: {} loss: {:.2f} test-loss: {:.2f}".format(epoch, loss, test_loss))
+        logging.info("epoch: {} loss: {:.4f} test-loss: {:.4f}".format(epoch, loss, test_loss))
 
         if test_loss < best_loss:
             if model_path:
@@ -94,7 +94,8 @@ def train(train_ds, test_ds, n_samples, n_epochs, model_path=None, device=None, 
                 torch.save({
                     "epoch": epoch,
                     "loss": test_loss,
-                    "model": enc.state_dict()
+                    "model": enc.state_dict(),
+                    "output_vector_size":enc.get_output_vector_size()
                 }, model_path)
             best_loss = test_loss
             best_enc = ImageEncoder(output_vector_size=output_vector_size)
