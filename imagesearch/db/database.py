@@ -82,13 +82,13 @@ class ImageDatabase (object):
             for img in self.dataset[label]:
                 id2label[idx] = label
                 id2img[idx] = torch.tensor(img)
-                index.append(self.encode_image(img))
+                # index.append(self.encode_image(img))
                 imgs.append(torch.tensor(img))
                 labels.append(label)
                 idx += 1
 
-        index = torch.stack(index).to(self.device)
         imgs = torch.stack(imgs).to(self.device)
+        index = self.encoder.forward(imgs.float() / 255.0)
         labels = torch.tensor(labels).long().to(self.device)
 
         return index, imgs, labels, id2label, id2img
@@ -199,22 +199,19 @@ class ImageDatabase (object):
         Return the mean accuracy where accuracy is the proportion of images returned
         by the search in the same class.
         '''
-        query_embs = []
-        query_labels = []
         accuracy = {f"Accuracy@{k}": 0.0 for k in k_values}
         MAP = {f"MAP@{k}": [] for k in k_values}
 
         # Encoding query images
         logging.info("Starting to Encode the Query Images...")
         
-        for label in test_ds:
-            for test_img in test_ds[label]:
-                query_embs.append(self.encode_image(test_img))
-                query_labels.append(label)
-        
+        # for label in test_ds:
+        #     for test_img in test_ds[label]:
+        #         query_embs.append(self.encode_image(test_img))
+        #         query_labels.append(label)
+        query_embs = self.index
+        query_labels = self.labels
         logging.info("Encoding done. Encoded {} query images with shape {}...".format(len(query_embs), query_embs[0].shape))
-
-        query_embs = torch.stack(query_embs).to(self.device)
         cos_scores_top_k_values, cos_scores_top_k_idx = [], []
         k_max = max(k_values)
 
