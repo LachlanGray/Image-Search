@@ -199,6 +199,7 @@ class ImageDatabase (object):
         Return the mean accuracy where accuracy is the proportion of images returned
         by the search in the same class.
         '''
+        query_images = []
         query_labels = []
         accuracy = {f"Accuracy@{k}": 0.0 for k in k_values}
         MAP = {f"MAP@{k}": [] for k in k_values}
@@ -208,9 +209,11 @@ class ImageDatabase (object):
         
         for label in test_ds:
             for test_img in test_ds[label]:
+                query_images.append(torch.tensor(test_img))
                 # query_embs.append(self.encode_image(test_img))
                 query_labels.append(label)
-        query_embs = self.index
+        query_images = torch.stack(query_images).to(self.device)
+        query_embs = self.encoder.forward(query_images.float() / 255.0)
         logging.info("Encoding done. Encoded {} query images with shape {}...".format(len(query_embs), query_embs[0].shape))
         cos_scores_top_k_values, cos_scores_top_k_idx = [], []
         k_max = max(k_values)
