@@ -199,18 +199,18 @@ class ImageDatabase (object):
         Return the mean accuracy where accuracy is the proportion of images returned
         by the search in the same class.
         '''
+        query_labels = []
         accuracy = {f"Accuracy@{k}": 0.0 for k in k_values}
         MAP = {f"MAP@{k}": [] for k in k_values}
 
         # Encoding query images
         logging.info("Starting to Encode the Query Images...")
         
-        # for label in test_ds:
-        #     for test_img in test_ds[label]:
-        #         query_embs.append(self.encode_image(test_img))
-        #         query_labels.append(label)
+        for label in test_ds:
+            for test_img in test_ds[label]:
+                # query_embs.append(self.encode_image(test_img))
+                query_labels.append(label)
         query_embs = self.index
-        query_labels = self.labels
         logging.info("Encoding done. Encoded {} query images with shape {}...".format(len(query_embs), query_embs[0].shape))
         cos_scores_top_k_values, cos_scores_top_k_idx = [], []
         k_max = max(k_values)
