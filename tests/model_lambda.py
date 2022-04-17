@@ -1,4 +1,5 @@
 import argparse
+import json
 import logging
 import matplotlib.pyplot as plt
 import numpy as np
@@ -34,7 +35,7 @@ if __name__ == '__main__':
     parser.add_argument("--min-lambda", dest="min_lambda", type=float, default=0.1)
     parser.add_argument("--max-lambda", dest="max_lambda", type=float, default=1.0)
     parser.add_argument("--lambda-steps", dest="lambda_steps", type=int, default=10)
-    parser.add_argument("--output", dest="output", type=str, default='acc.png')
+    parser.add_argument("--output", dest="output", type=str, default='output.json')
     args = vars(parser.parse_args(sys.argv[1:]))
 
     train_device = torch.device(args['train_device'])
@@ -116,3 +117,6 @@ if __name__ == '__main__':
     plt.title('Top-K Accuracy')
     plt.legend()
     plt.savefig('acc_k_lambda.png')
+
+    with open(args['output'], 'w') as f:
+        f.write(json.dumps({'accs':accs, 'maps':maps, 'recalls':recalls}))

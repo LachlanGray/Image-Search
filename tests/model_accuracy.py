@@ -1,4 +1,5 @@
 import argparse
+import json
 import logging
 import matplotlib.pyplot as plt
 import sys
@@ -32,7 +33,7 @@ if __name__ == '__main__':
     parser.add_argument("--min-log-vector-size", dest="min_log_vector_size", type=int, default=3)
     parser.add_argument("--max-log-vector-size", dest="max_log_vector_size", type=int, default=10)
     parser.add_argument("--log-vector-size-step", dest="log_vector_size_step", type=int, default=1)
-    parser.add_argument("--output", dest="output", type=str, default='acc.png')
+    parser.add_argument("--output", dest="output", type=str, default='output.json')
     args = vars(parser.parse_args(sys.argv[1:]))
 
     train_device = torch.device(args['train_device'])
@@ -114,3 +115,6 @@ if __name__ == '__main__':
     plt.title('Top-K Accuracy')
     plt.legend()
     plt.savefig('acc_k.png')
+
+    with open(args['output'], 'w') as f:
+        f.write(json.dumps({'accs':accs, 'maps':maps, 'recalls':recalls}))
