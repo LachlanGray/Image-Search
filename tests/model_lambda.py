@@ -64,6 +64,7 @@ if __name__ == '__main__':
 
     accs = {}
     maps = {}
+    recalls = {}
 
     for lambda_val in lambda_vals:
         net = train_model(train_ds, test_ds, n_train_samples, n_epochs, output_vector_size, lambda_val, train_device)
@@ -72,26 +73,31 @@ if __name__ == '__main__':
         logging.info("loading database")
         db = ImageDatabase(train_ds, net, test_device)
         # logging.info("loaded database. size={}".format(len(db)))
-        acc, MAP = db.evaluate_all(test_ds)
+        recall, MAP, acc = db.evaluate_all(test_ds)
 
-        for k in acc:
-            if accs.get(k) is None:
-                accs[k] = []
-            accs[k].append(acc[k])
+        for k in recall:
+            if recalls.get(k) is None:
+                recalls[k] = []
+            recalls[k].append(recall[k])
 
         for k in MAP:
             if maps.get(k) is None:
                 maps[k] = []
             maps[k].append(MAP[k])
+
+        for k in acc:
+            if accs.get(k) is None:
+                accs[k] = []
+            accs[k].append(acc[k])
     
     plt.figure(figsize=(11, 8), dpi=300)
-    for k in accs:
-        plt.plot(lambda_vals, accs[k], label=k)
+    for k in recalls:
+        plt.plot(lambda_vals, recalls[k], label=k)
     plt.xlabel('Log Latent Vector Size')
-    plt.ylabel('Accuracy')
-    plt.title('Accuracy@k')
+    plt.ylabel('Recall')
+    plt.title('Recall@k')
     plt.legend()
-    plt.savefig('acc_k_lambda.png')
+    plt.savefig('recall_k_lambda.png')
 
     plt.figure(figsize=(11, 8), dpi=300)
     for k in maps:
@@ -101,3 +107,12 @@ if __name__ == '__main__':
     plt.title('MAP@k')
     plt.legend()
     plt.savefig('map_k_lambda.png')
+
+    plt.figure(figsize=(11, 8), dpi=300)
+    for k in accs:
+        plt.plot(lambda_vals, accs[k], label=k)
+    plt.xlabel('Log Latent Vector Size')
+    plt.ylabel('Top-K Accuracy')
+    plt.title('Top-K Accuracy')
+    plt.legend()
+    plt.savefig('acc_k_lambda.png')

@@ -43,7 +43,7 @@ def train(train_ds, test_ds, n_epochs, model_path=None, device=None, batch_size=
     for epoch in range(1, n_epochs+1):
         train_loss = train_step(encoder, decoder, train_loader, loss_fn, optimizer, device=device)
         test_loss = test_step(encoder, decoder, test_loader, loss_fn, device=device)
-        logging.info("Epoch: {} Training loss: {:.2f} Test loss: {:.2f}".format(epoch, train_loss, test_loss))
+        logging.info("Epoch: {} Training loss: {:.5f} Test loss: {:.5f}".format(epoch, train_loss, test_loss))
 
         if test_loss < best_loss:
             if model_path:
@@ -135,7 +135,7 @@ if __name__ == '__main__':
     parser.add_argument('--output', dest='model_path', type=str)
     parser.add_argument('--batch_size', dest='batch_size', type=int, default=128)
     parser.add_argument('--latent_dim', dest='latent_dim', type=int, default=64)
-    parser.add_argument('--lr', dest='lr', type=float, default=1e-3)
+    parser.add_argument('--lr', dest='lr', type=float, default=1e-4)
     args = vars(parser.parse_args(sys.argv[1:]))
 
     #### Just some code to print debug information to stdout

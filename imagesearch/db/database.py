@@ -201,8 +201,9 @@ class ImageDatabase (object):
         '''
         query_images = []
         query_labels = []
-        accuracy = {f"Accuracy@{k}": 0.0 for k in k_values}
+        Recall = {f"Recall@{k}": 0.0 for k in k_values}
         MAP = {f"MAP@{k}": [] for k in k_values}
+        Accuracy = {f"Accuracy@{k}": 0.0 for k in k_values}
 
         # Encoding query images
         logging.info("Starting to Encode the Query Images...")
@@ -233,16 +234,23 @@ class ImageDatabase (object):
             cos_scores_top_k_values += cos_scores_top_k_values_batch.cpu().tolist()
             cos_scores_top_k_idx += cos_scores_top_k_idx_batch.cpu().tolist()
 
-        # Accuracy@k. MAP@k
+        # Recall@k. MAP@k
         for query_itr in range(len(query_embs)):
             query_label = query_labels[query_itr]
             doc_scores = dict(zip(cos_scores_top_k_idx[query_itr], cos_scores_top_k_values[query_itr]))
+            
+            # The first element is the query itself, so we remove it
             top_hits = sorted(doc_scores.items(), key=lambda item: item[1], reverse=True)[1:k_max+1]
+            
+            # Recall@k
+            for k in k_values:
+                acc = len(list(filter(lambda x: self.id2label[x[0]] == query_label, top_hits[0:k]))) / k
+                Recall[f"Recall@{k}"] += acc
             
             # Accuracy@k
             for k in k_values:
-                acc = len(list(filter(lambda x: self.id2label[x[0]] == query_label, top_hits[0:k]))) / k
-                accuracy[f"Accuracy@{k}"] += acc
+                if query_label in set([self.id2label[idx] for idx, _ in top_hits[0:k]]):
+                    Accuracy[f"Accuracy@{k}"] += 1
             
             # MAP@k
             for k in k_values:
@@ -258,10 +266,10 @@ class ImageDatabase (object):
                 avg_precision = sum_precisions / k
                 MAP[f"MAP@{k}"].append(avg_precision)
             
-        # Average Accuracy@k and MAP@k
+        # Average Recall@k and MAP@k
         for k in k_values:
-            accuracy[f"Accuracy@{k}"] = round(accuracy[f"Accuracy@{k}"]/len(query_embs), 5)
-            logging.info("Accuracy@{}: {:.4f}".format(k, accuracy[f"Accuracy@{k}"]))
+            Recall[f"Recall@{k}"] = round(Recall[f"Recall@{k}"]/len(query_embs), 5)
+            logging.info("Recall@{}: {:.4f}".format(k, Recall[f"Recall@{k}"]))
         
         logging.info("\n\n")
         
@@ -270,8 +278,12 @@ class ImageDatabase (object):
             logging.info("MAP@{}: {:.4f}".format(k, MAP[f"MAP@{k}"]))
         
         logging.info("\n\n")
+
+        for k in k_values:
+            Accuracy[f"Accuracy@{k}"] = round(Accuracy[f"Accuracy@{k}"]/len(query_embs), 5)
+            logging.info("Accuracy@{}: {:.4f}".format(k, Accuracy[f"Accuracy@{k}"]))
         
-        return accuracy, MAP
+        return Recall, MAP, Accuracy
 
 
 if __name__ == '__main__':

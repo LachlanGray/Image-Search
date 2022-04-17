@@ -46,4 +46,4 @@ if __name__ == '__main__':
 
     logging.info("loading database...")
     db = ImageDatabase(test, net, device)
-    score_acc, score_map = db.evaluate_all(test, top_k=10)
+    score_recall, score_map, score_acc = db.evaluate_all(test, top_k=10)

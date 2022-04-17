@@ -25,7 +25,7 @@ def train(train_ds, test_ds, n_samples, n_epochs, model_path=None, device=None, 
         batch_size=64,
         sampler=RandomSubsetSampler(len(train_ds), n_samples)
     )
-    n_test_samples = max(1, round(n_samples*0.3))
+    n_test_samples = max(1, round(n_samples * 0.3))
     test_loader = DataLoader(
         test_ds,
         batch_size=64,
