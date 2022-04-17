@@ -63,7 +63,11 @@ class ImageDecoder(torch.nn.Module):
 
 def load_model(model_path, device=None):
     checkpoint = torch.load(model_path)
-    net = ImageEncoder(output_vector_size=int(checkpoint['output_vector_size']))
+    try:
+        output_vector_size=int(checkpoint['output_vector_size'])
+    except:
+        output_vector_size=10
+    net = ImageEncoder(output_vector_size=output_vector_size)
     if device:
         net = net.to(device)
     net.load_state_dict(checkpoint['model'])
