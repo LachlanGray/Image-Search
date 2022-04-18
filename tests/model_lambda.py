@@ -32,9 +32,9 @@ if __name__ == '__main__':
     parser.add_argument("--test-samples", dest="test_samples", type=int, default=500)
     parser.add_argument("--k", dest="k", type=int, default=5)
     parser.add_argument("--output-vector-size", dest="output_vector_size", type=int, default=100)
-    parser.add_argument("--min-lambda", dest="min_lambda", type=float, default=0.1)
+    parser.add_argument("--min-lambda", dest="min_lambda", type=float, default=0.0)
     parser.add_argument("--max-lambda", dest="max_lambda", type=float, default=1.0)
-    parser.add_argument("--lambda-steps", dest="lambda_steps", type=int, default=10)
+    parser.add_argument("--lambda-steps", dest="lambda_steps", type=int, default=11)
     parser.add_argument("--output", dest="output", type=str, default='output.json')
     args = vars(parser.parse_args(sys.argv[1:]))
 
@@ -94,7 +94,7 @@ if __name__ == '__main__':
     plt.figure(figsize=(11, 8), dpi=300)
     for k in recalls:
         plt.plot(lambda_vals, recalls[k], label=k)
-    plt.xlabel('Log Latent Vector Size')
+    plt.xlabel('λ')
     plt.ylabel('Recall')
     plt.title('Recall@k')
     plt.legend()
@@ -103,7 +103,7 @@ if __name__ == '__main__':
     plt.figure(figsize=(11, 8), dpi=300)
     for k in maps:
         plt.plot(lambda_vals, maps[k], label=k)
-    plt.xlabel('Log Latent Vector Size')
+    plt.xlabel('λ')
     plt.ylabel('MAP')
     plt.title('MAP@k')
     plt.legend()
@@ -112,7 +112,7 @@ if __name__ == '__main__':
     plt.figure(figsize=(11, 8), dpi=300)
     for k in accs:
         plt.plot(lambda_vals, accs[k], label=k)
-    plt.xlabel('Log Latent Vector Size')
+    plt.xlabel('λ')
     plt.ylabel('Top-K Accuracy')
     plt.title('Top-K Accuracy')
     plt.legend()
