@@ -7,6 +7,7 @@ from re import I
 import torch
 import os
 import logging
+import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
 import sys
 
@@ -17,7 +18,7 @@ from imagesearch.models import ImageEncoder, ImageDecoder
 def get_device():
     return torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-def train(train_ds, test_ds, n_samples, n_epochs, model_path=None, device=None, output_vector_size=1000, lambda_val=0.7):
+def train(train_ds, test_ds, n_samples, n_epochs, model_path=None, device=None, output_vector_size=10, lambda_val=0.7, loss_plot_path=None):
     if device is None:
         device = get_device()
     train_loader = DataLoader(
@@ -40,6 +41,8 @@ def train(train_ds, test_ds, n_samples, n_epochs, model_path=None, device=None, 
     loss_fn = torch.nn.TripletMarginWithDistanceLoss(distance_function=lambda x, y: 1.0 - torch.nn.functional.cosine_similarity(x, y))
     # loss_fn = torch.nn.TripletMarginLoss()
     best_loss = float('inf')
+    train_losses = []
+    test_losses = []
 
     for epoch in range(1,n_epochs+1):
         total_loss = 0
@@ -80,6 +83,8 @@ def train(train_ds, test_ds, n_samples, n_epochs, model_path=None, device=None, 
 
         loss = total_loss / n_batches
         test_loss = test_loss / n_test_batches
+        train_losses.append(loss)
+        test_losses.append(test_loss)
         logging.info("epoch: {} loss: {:.4f} test-loss: {:.4f}".format(epoch, loss, test_loss))
 
         if test_loss < best_loss:
@@ -101,13 +106,25 @@ def train(train_ds, test_ds, n_samples, n_epochs, model_path=None, device=None, 
             best_enc = ImageEncoder(output_vector_size=output_vector_size)
             best_enc.load_state_dict(enc.state_dict())
 
+    if not loss_plot_path is None:
+        plt.figure(figsize=(11,8), dpi=300)
+        plt.plot(train_losses, label='train')
+        plt.plot(test_losses, label='train')
+        plt.xlabel('Epoch')
+        plt.ylabel('Loss')
+        plt.legend()
+        plt.savefig(loss_plot_path)
+
     return best_enc
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--samples', dest='samples', type=int, default=50000)
     parser.add_argument('--epochs', dest='epochs', type=int, default=20)
+    parser.add_argument('--lambda', dest='lambda_val', type=float, default=0.7)
+    parser.add_argument('--vector-size', dest='output_vector_size', type=int, default=10)
     parser.add_argument('--output', dest='model_path', type=str)
+    parser.add_argument('--loss-plot', dest='loss_plot_path', type=str)
     args = vars(parser.parse_args(sys.argv[1:]))
 
     #### Just some code to print debug information to stdout
@@ -133,7 +150,10 @@ if __name__ == '__main__':
     n_samples = args['samples']
     n_epochs = args['epochs']  # total number of epochs
     model_path = args['model_path']
+    output_vector_size = args['output_vector_size']
+    lambda_val = args['lambda_val']
+    loss_plot_path = args['loss_plot_path']
 
     logging.info("training. epochs={} samples={}".format(n_epochs, n_samples))
-    train(train_ds, test_ds, n_samples, n_epochs, model_path)
+    train(train_ds, test_ds, n_samples, n_epochs, model_path, output_vector_size=output_vector_size, lambda_val=lambda_val, loss_plot_path=loss_plot_path)
     logging.info("done training")
