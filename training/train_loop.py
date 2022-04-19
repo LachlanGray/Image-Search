@@ -109,7 +109,7 @@ def train(train_ds, test_ds, n_samples, n_epochs, model_path=None, device=None, 
     if not loss_plot_path is None:
         plt.figure(figsize=(11,8), dpi=300)
         plt.plot(train_losses, label='train')
-        plt.plot(test_losses, label='train')
+        plt.plot(test_losses, label='test')
         plt.xlabel('Epoch')
         plt.ylabel('Loss')
         plt.legend()
